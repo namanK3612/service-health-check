@@ -74,8 +74,7 @@ def update_dashboard(n):
             all_data.extend(file_data)  # Collect data from all JSON files
 
             # Record the last modified time of the file and convert to IST
-            utc_time = file.time_last_modified  # This is already a datetime object
-            last_updated_times[file.name] = utc_time.replace(tzinfo=pytz.utc).astimezone(IST).strftime("%Y-%m-%d %I:%M %p %Z")
+            last_updated_times[file.name] = file.time_last_modified.replace(tzinfo=pytz.utc).astimezone(IST).strftime("%Y-%m-%d %I:%M %p %Z")
 
 
     # If no data was gathered, return an alert
