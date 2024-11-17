@@ -1,6 +1,8 @@
 import os
 import json
+import pytz
 import pandas as pd
+from datetime import datetime
 from dotenv import load_dotenv
 from dash import Dash, html, dcc
 from dash.dependencies import Input, Output
@@ -29,6 +31,9 @@ app.layout = dbc.Container([
     ])
 ], fluid=True, style={"backgroundColor": "#2c2f33"})
 
+# Define the IST timezone
+IST = pytz.timezone("Asia/Kolkata")
+
 # Define callback to refresh data and update the dashboard
 @app.callback(
     Output('service-health-container', 'children'),
@@ -46,8 +51,9 @@ def update_dashboard(n):
     ctx.load(files)
     ctx.execute_query()
 
-    # Initialize a list to collect data from each JSON file
+    # Initialize a list to collect data and timestamps
     all_data = []
+    last_updated_times = {}
 
     # Loop through each JSON file and gather service data
     for file in files:
@@ -57,10 +63,20 @@ def update_dashboard(n):
                 json_content = file_content.decode('utf-8')
             except UnicodeDecodeError:
                 json_content = file_content.decode('utf-16')
-            
-            # Load the JSON content into a dictionary and append to all_data
+
+            # Load the JSON content into a dictionary
             file_data = json.loads(json_content)
+
+            # Append file data with the file name
+            for entry in file_data:
+                entry['FileName'] = file.name  # Add FileName column for reference
+
             all_data.extend(file_data)  # Collect data from all JSON files
+
+            # Record the last modified time of the file and convert to IST
+            utc_time = file.time_last_modified  # This is already a datetime object
+            last_updated_times[file.name] = utc_time.replace(tzinfo=pytz.utc).astimezone(IST).strftime("%Y-%m-%d %I:%M %p %Z")
+
 
     # If no data was gathered, return an alert
     if not all_data:
@@ -68,8 +84,8 @@ def update_dashboard(n):
 
     # Convert to DataFrame for easier manipulation
     df = pd.DataFrame(all_data)
-    
-    # Generate dashboard content with service statuses
+
+    # Generate dashboard content with service statuses and last updated times
     service_status_divs = [
         dbc.Col(
             dbc.Card(
@@ -88,13 +104,18 @@ def update_dashboard(n):
                         color="success" if status.lower() == 'running' else "danger",
                         className="p-2",
                     ),
+                    html.P(
+                        f"Last Updated: {last_updated_times[file_name]}",
+                        className="text-light mt-2",
+                        style={"fontSize": "0.85rem"}
+                    )
                 ]),
                 className="shadow-sm mb-4 bg-dark",
                 style={'width': '18rem'}
             ),
             width=4,
             className="mb-4"
-        ) for service, status in zip(df['Name'], df['Status'])
+        ) for service, status, file_name in zip(df['Name'], df['Status'], df['FileName'])
     ]
 
     # Arrange service statuses into rows
