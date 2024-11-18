@@ -29,12 +29,14 @@ IST = pytz.timezone("Asia/Kolkata")
 last_alert_times = {}
 
 # Function to send an alert to Microsoft Teams
+project_name = os.getenv('project_name')
+
 def send_teams_alert(service_name, status, last_updated):
     """Sends an alert to the specified Teams channel using the webhook."""
     if status.lower() == "stopped":
-        message = f"🚨 Service **{service_name}** is STOPPED as of {last_updated}."
+        message = f"🚨 || {project_name} || **{service_name}** is **STOPPED** as of {last_updated}.🚨"
     elif status.lower() == "running":
-        message = f"✅ Service **{service_name}** is RUNNING as of {last_updated}."
+        message = f"✅ || {project_name} || **{service_name}** is **RUNNING** as of {last_updated}.✅"
 
     payload = {
         "text": message
