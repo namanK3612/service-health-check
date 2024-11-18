@@ -43,14 +43,14 @@ $results = @()
 function Get-ServiceStatusDescription {
     param($status)
     switch ($status) {
-        "Running"       { return "Running" }
-        "Stopped"       { return "Stopped" }
-        "StartPending"  { return "Start Pending" }
-        "StopPending"   { return "Stop Pending" }
-        "Paused"        { return "Paused" }
-        "PausePending"  { return "Pause Pending" }
-        "ContinuePending" { return "Continue Pending" }
-        default         { return "Unknown" }
+        "Running"           { return "Running" }
+        "Stopped"           { return "Stopped" }
+        "StartPending"      { return "Start Pending" }
+        "StopPending"       { return "Stop Pending" }
+        "Paused"            { return "Paused" }
+        "PausePending"      { return "Pause Pending" }
+        "ContinuePending "  { return "Continue Pending" }
+        default             { return "Unknown" }
     }
 }
 
