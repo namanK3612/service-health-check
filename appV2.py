@@ -3,6 +3,7 @@ import json
 import pytz
 import pandas as pd
 import requests
+import webbrowser
 from datetime import datetime
 from dotenv import load_dotenv
 from dash import Dash, html, dcc
@@ -10,6 +11,7 @@ from dash.dependencies import Input, Output
 import dash_bootstrap_components as dbc
 from office365.sharepoint.client_context import ClientContext
 from office365.runtime.auth.user_credential import UserCredential
+import socket
 
 # Load environment variables from .env file
 load_dotenv()
@@ -31,12 +33,36 @@ last_alert_times = {}
 # Function to send an alert to Microsoft Teams
 project_name = os.getenv('project_name')
 
+
+def find_open_port(start_port=8050, end_port=9000):
+    """Finds an open port in the specified range."""
+    for port in range(start_port, end_port + 1):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(('127.0.0.1', port)) != 0:  # Port is available
+                return port
+    raise RuntimeError("No available ports found in the specified range.")
+
+
 def send_teams_alert(service_name, status, last_updated):
     """Sends an alert to the specified Teams channel using the webhook."""
     if status.lower() == "stopped":
-        message = f"🚨 || {project_name} || **{service_name}** is **STOPPED** as of {last_updated}.🚨"
+        message = (
+            f"🚨 **ALERT: SERVICE STOPPED** 🚨\n\n"
+            f"- **Project**: {project_name}\n"
+            f"- **Service**: **{service_name}**\n"
+            f"- **Status**: 🛑 **STOPPED**\n"
+            f"- **Last Updated**: {last_updated}\n\n"
+            f"🔍 Please investigate immediately!"
+        )
     elif status.lower() == "running":
-        message = f"✅ || {project_name} || **{service_name}** is **RUNNING** as of {last_updated}.✅"
+        message = (
+            f"✅ **SERVICE RECOVERY** ✅\n\n"
+            f"- **Project**: {project_name}\n"
+            f"- **Service**: **{service_name}**\n"
+            f"- **Status**: 🟢 **RUNNING**\n"
+            f"- **Last Updated**: {last_updated}\n\n"
+            f"🎉 All systems operational!"
+        )
 
     payload = {
         "text": message
@@ -47,6 +73,7 @@ def send_teams_alert(service_name, status, last_updated):
         print(f"Alert sent to Teams: {message}")
     else:
         print(f"Failed to send alert: {response.text}")
+
 
 # Function to fetch data from SharePoint
 def fetch_sharepoint_data():
@@ -201,4 +228,8 @@ def update_dashboard(n):
 
 # Run the app
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    port = find_open_port()
+    url = f"http://127.0.0.1:{port}"
+    print(f"Starting app on {url}")
+    webbrowser.open(url)
+    app.run(debug=False, port=port)
