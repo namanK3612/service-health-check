@@ -30,10 +30,10 @@ $oneDrivePath = "${oneDriveRemoteName}:${oneDriveFolderPath}"
 $servicesToMonitor = @(
  "CrystalHESMQTTPushService" 
 ,"CrystalHESMQTTPullService"
-#,"CrystalHESGapReadingService"    
-#,"CrystalHESBackGroundServices"   
-#,"CrystalHESNodeManagementService"
-#,"NotifierService"                
+,"CrystalHESGapReadingService"    
+,"CrystalHESBackGroundServices"   
+,"CrystalHESNodeManagementService"
+,"NotifierService"                
 )
 
 # Initialize an empty array to store the results
