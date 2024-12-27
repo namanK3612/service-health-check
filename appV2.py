@@ -46,21 +46,21 @@ def find_open_port(start_port=8050, end_port=9000):
 def send_teams_alert(service_name, status, last_updated):
     """Sends an alert to the specified Teams channel using the webhook."""
     if status.lower() == "stopped":
-        message = (
+         message = (
             f"🚨 **ALERT: SERVICE STOPPED** 🚨\n\n"
-            f"- **Project**: {project_name}\n"
-            f"- **Service**: **{service_name}**\n"
-            f"- **Status**: 🛑 **STOPPED**\n"
-            f"- **Last Updated**: {last_updated}\n\n"
+            f"- Project: **{project_name}**\n"
+            f"- Service: **{service_name}**\n"
+            f"- Status: 🛑 **STOPPED**\n"
+            f"- Last Updated: {last_updated}\n\n"
             f"🔍 Please investigate immediately!"
         )
     elif status.lower() == "running":
         message = (
             f"✅ **SERVICE RECOVERY** ✅\n\n"
-            f"- **Project**: {project_name}\n"
-            f"- **Service**: **{service_name}**\n"
-            f"- **Status**: 🟢 **RUNNING**\n"
-            f"- **Last Updated**: {last_updated}\n\n"
+            f"- Project: **{project_name}**\n"
+            f"- Service: **{service_name}**\n"
+            f"- Status: 🟢 **RUNNING**\n"
+            f"- Last Updated: {last_updated}\n\n"
             f"🎉 All systems operational!"
         )
 
