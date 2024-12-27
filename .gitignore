@@ -1,2 +1,5 @@
 .env
 venv/
+appV2.spec
+build/
+dist/
