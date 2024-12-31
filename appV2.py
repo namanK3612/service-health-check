@@ -194,15 +194,16 @@ def update_dashboard(n):
             for service in project_data
         ]
 
-        project_section = dbc.AccordionItem(
+        project_section = html.Div(
             [
+                html.H3(project["project_name"], className="text-light mb-3"),
                 html.P(f"Last Updated: {last_update_time}", className="text-light"),
                 dbc.Row(
                     [dbc.Col(card, width=4) for card in service_cards],
                     justify="start",
                 ),
             ],
-            title=project["project_name"],
+            className="mb-5",
         )
         project_sections.append(project_section)
 
@@ -210,8 +211,8 @@ def update_dashboard(n):
     if alerts["stopped"] or alerts["running"]:
         send_teams_alert(alerts)
 
-    # Wrap all project sections in an accordion
-    return dbc.Accordion(project_sections, always_open=True)
+    # Return the final dashboard layout
+    return project_sections
 
 
 if __name__ == "__main__":
