@@ -150,13 +150,23 @@ def update_dashboard(n):
         project_data, last_updated_times = fetch_sharepoint_data(
             project["site_url"], project["folder_url"]
         )
-        last_update_time = list(last_updated_times.values())[0]  # Assuming one update time per project
+
+        # Calculate the minimum last updated timestamp for the project
+        min_last_update_time = min(
+            datetime.strptime(ts[:-4], "%Y-%m-%d %I:%M %p").replace(tzinfo=IST)
+            for ts in last_updated_times.values()
+        )
+        formatted_min_update_time = min_last_update_time.strftime("%Y-%m-%d %I:%M %p %Z")
+
+        # Determine the accordion bar color based on service statuses
+        all_services_running = all(
+            service["Status"].lower() == "running" for service in project_data
+        )
 
         # Track alerts
         for service in project_data:
             service_name = service["Name"]
             status = service["Status"]
-            startup_type = service["StartupType"]
 
             if status.lower() == "stopped":
                 if service_name not in last_alert_times or (
@@ -194,22 +204,31 @@ def update_dashboard(n):
             for service in project_data
         ]
 
+        # Create the project section with updated last updated time and accordion color
         project_section = dbc.AccordionItem(
             [
-                html.P(f"Last Updated: {last_update_time}", className="text-light"),
                 dbc.Row(
                     [dbc.Col(card, width=4) for card in service_cards],
                     justify="start",
                 ),
             ],
-            title=project["project_name"],
+            title=f"{project['project_name']} (Last Updated: {formatted_min_update_time})",
+            id=f"accordion-{project['project_name']}",  # Add an ID for uniqueness if needed
+            style={
+                "backgroundColor": ("#198754" if all_services_running else "#dc3545"),  # Green or red
+                "color": "white",
+                "padding": "10px",
+                "borderRadius": "5px",
+                "fontWeight": "bold",
+            },
         )
         project_sections.append(project_section)
 
     # Send cumulative Teams alerts if there are updates
     if alerts["stopped"] or alerts["running"]:
-        send_teams_alert(alerts)
-
+        #send_teams_alert(alerts)
+        pass
+    
     # Wrap all project sections in an accordion
     return dbc.Accordion(project_sections, always_open=True)
 
