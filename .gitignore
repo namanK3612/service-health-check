@@ -1,7 +1,7 @@
-.env
 venv/
-appV2.spec
-build/
-dist/
-.vs/
-.vercel
+.vercel/
+logs/
+.env
+*.ps1
+*.py[cod]
+__pycache__/

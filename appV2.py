@@ -1,6 +1,7 @@
 import os
 import json
 import pytz
+import logging
 import pandas as pd
 import requests
 import webbrowser
@@ -12,6 +13,24 @@ import dash_bootstrap_components as dbc
 from office365.sharepoint.client_context import ClientContext
 from office365.runtime.auth.user_credential import UserCredential
 import socket
+
+# Configure logging
+log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+os.makedirs(log_dir, exist_ok=True)
+log_file = os.path.join(log_dir, "dashboard.log")
+logging.basicConfig(
+    filename=log_file,
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger()
+
+# Log to both console and file
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -45,7 +64,6 @@ username = os.getenv("sharepoint_username")
 password = os.getenv("password")
 TEAMS_WEBHOOK_URL = os.getenv("teams_webhook_url")
 
-
 def find_open_port(start_port=8050, end_port=9000):
     for port in range(start_port, end_port + 1):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -53,62 +71,63 @@ def find_open_port(start_port=8050, end_port=9000):
                 return port
     raise RuntimeError("No available ports found in the specified range.")
 
-
 def send_teams_alert(alerts):
     """Sends cumulative alerts to Microsoft Teams."""
-    message = "🚨 **Service Alert Summary** 🚨\n\n"
+    message = "\ud83d\udea8 **Service Alert Summary** \ud83d\udea8\n\n"
 
     if alerts.get("stopped"):
         stopped_services = "\n".join(
             f"- {entry['Name']} (Startup Type: {entry['StartupType']})" for entry in alerts["stopped"]
         )
-        message += f"🛑 **Stopped Services:**\n{stopped_services}\n\n"
+        message += f"\ud83d\uded1 **Stopped Services:**\n{stopped_services}\n\n"
 
     if alerts.get("running"):
         running_services = "\n".join(
             f"- {entry['Name']} (Startup Type: {entry['StartupType']})" for entry in alerts["running"]
         )
-        message += f"✅ **Recovered Services:**\n{running_services}\n\n"
+        message += f"\u2705 **Recovered Services:**\n{running_services}\n\n"
 
-    message += "🔍 Please investigate immediately!"
+    message += "\ud83d\udd0d Please investigate immediately!"
 
     payload = {"text": message}
     response = requests.post(TEAMS_WEBHOOK_URL, json=payload)
     if response.status_code == 200:
-        print("Cumulative alert sent to Teams.")
+        logger.info("Cumulative alert sent to Teams.")
     else:
-        print(f"Failed to send alert: {response.text}")
-
+        logger.error(f"Failed to send alert: {response.text}")
 
 def fetch_sharepoint_data(site_url, folder_url):
     """Fetches service health data from a single SharePoint."""
-    ctx = ClientContext(site_url).with_credentials(UserCredential(username, password))
-    files = ctx.web.get_folder_by_server_relative_url(folder_url).files
-    ctx.load(files)
-    ctx.execute_query()
+    try:
+        ctx = ClientContext(site_url).with_credentials(UserCredential(username, password))
+        files = ctx.web.get_folder_by_server_relative_url(folder_url).files
+        ctx.load(files)
+        ctx.execute_query()
 
-    all_data = []
-    last_updated_times = {}
+        all_data = []
+        last_updated_times = {}
 
-    for file in files:
-        if file.name.endswith(".json"):
-            file_content = file.read()
-            try:
-                json_content = file_content.decode("utf-8")
-            except UnicodeDecodeError:
-                json_content = file_content.decode("utf-16")
+        for file in files:
+            if file.name.endswith(".json"):
+                file_content = file.read()
+                try:
+                    json_content = file_content.decode("utf-8")
+                except UnicodeDecodeError:
+                    json_content = file_content.decode("utf-16")
 
-            file_data = json.loads(json_content)
-            for entry in file_data:
-                entry["FileName"] = file.name
+                file_data = json.loads(json_content)
+                for entry in file_data:
+                    entry["FileName"] = file.name
 
-            all_data.extend(file_data)
-            last_updated_times[file.name] = file.time_last_modified.replace(
-                tzinfo=pytz.utc
-            ).astimezone(IST).strftime("%Y-%m-%d %I:%M %p %Z")
+                all_data.extend(file_data)
+                last_updated_times[file.name] = file.time_last_modified.replace(
+                    tzinfo=pytz.utc
+                ).astimezone(IST).strftime("%Y-%m-%d %I:%M %p %Z")
 
-    return all_data, last_updated_times
-
+        return all_data, last_updated_times
+    except Exception as e:
+        logger.error(f"Error fetching data from SharePoint: {e}")
+        return [], {}
 
 # Create Dash application
 app = Dash(__name__, external_stylesheets=[dbc.themes.DARKLY])
@@ -134,7 +153,6 @@ app.layout = dbc.Container(
         "overflow": "auto",  # Allow scrolling for large dashboards
     },
 )
-
 
 @app.callback(
     Output("service-health-container", "children"),
@@ -232,11 +250,12 @@ def update_dashboard(n):
     # Wrap all project sections in an accordion
     return dbc.Accordion(project_sections, always_open=True)
 
-
 if __name__ == "__main__":
-    # port = find_open_port()
-    # url = f"http://127.0.0.1:{port}"
-    # print(f"Starting app on {url}")
-    # webbrowser.open(url)
-    # app.run(debug=False, port=port)
-    app.run()
+    try:
+        # port = find_open_port()
+        # url = f"http://127.0.0.1:{port}"
+        # logger.info(f"Starting app on {url}")
+        # webbrowser.open(url)
+        app.run()
+    except Exception as e:
+        logger.error(f"Failed to start the app: {e}")

@@ -1,6 +1,7 @@
 venv/
-.env
 .vercel/
+logs/
+.env
 *.ps1
-.gitignore
-README.md
+*.py[cod]
+__pycache__/
