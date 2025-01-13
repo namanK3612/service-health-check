@@ -1,0 +1,6 @@
+venv/
+.env
+.vercel/
+*.ps1
+.gitignore
+README.md

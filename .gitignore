@@ -4,3 +4,4 @@ appV2.spec
 build/
 dist/
 .vs/
+.vercel
