@@ -2,7 +2,7 @@ logs/
 venv/
 .vercel/
 .env
+*.zip
 *.ps1
-*.log
 *.py[cod]
 __pycache__/
