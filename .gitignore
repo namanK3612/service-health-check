@@ -1,6 +1,6 @@
+logs/
 venv/
 .vercel/
-logs/
 .env
 *.ps1
 *.py[cod]
