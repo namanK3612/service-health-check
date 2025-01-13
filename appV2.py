@@ -239,4 +239,4 @@ if __name__ == "__main__":
     # print(f"Starting app on {url}")
     # webbrowser.open(url)
     # app.run(debug=False, port=port)
-    app.run(debug = False)
+    app.run()
