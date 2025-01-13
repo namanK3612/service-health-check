@@ -3,5 +3,6 @@ venv/
 .vercel/
 .env
 *.ps1
+*.log
 *.py[cod]
 __pycache__/
