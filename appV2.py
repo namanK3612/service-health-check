@@ -226,17 +226,17 @@ def update_dashboard(n):
 
     # Send cumulative Teams alerts if there are updates
     if alerts["stopped"] or alerts["running"]:
-        send_teams_alert(alerts)
-        #pass
+        # send_teams_alert(alerts)
+        pass
     
     # Wrap all project sections in an accordion
     return dbc.Accordion(project_sections, always_open=True)
 
 
 if __name__ == "__main__":
-    port = find_open_port()
-    url = f"http://127.0.0.1:{port}"
-    print(f"Starting app on {url}")
-    webbrowser.open(url)
-    app.run(debug=False, port=port)
+    # port = find_open_port()
+    # url = f"http://127.0.0.1:{port}"
+    # print(f"Starting app on {url}")
+    # webbrowser.open(url)
+    # app.run(debug=False, port=port)
     app.run(debug = False)
