@@ -131,6 +131,7 @@ def fetch_sharepoint_data(site_url, folder_url):
 
 # Create Dash application
 app = Dash(__name__, external_stylesheets=[dbc.themes.DARKLY])
+server = app.server
 
 app.layout = dbc.Container(
     [
