@@ -2,9 +2,9 @@ import os
 import json
 import pytz
 import logging
-import pandas as pd
+# import pandas as pd
 import requests
-import webbrowser
+# import webbrowser
 from datetime import datetime
 from dotenv import load_dotenv
 from dash import Dash, html, dcc
@@ -12,7 +12,7 @@ from dash.dependencies import Input, Output
 import dash_bootstrap_components as dbc
 from office365.sharepoint.client_context import ClientContext
 from office365.runtime.auth.user_credential import UserCredential
-import socket
+# import socket
 
 # Configure logging
 log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
@@ -64,37 +64,37 @@ username = os.getenv("sharepoint_username")
 password = os.getenv("password")
 TEAMS_WEBHOOK_URL = os.getenv("teams_webhook_url")
 
-def find_open_port(start_port=8050, end_port=9000):
-    for port in range(start_port, end_port + 1):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            if s.connect_ex(("127.0.0.1", port)) != 0:
-                return port
-    raise RuntimeError("No available ports found in the specified range.")
+# def find_open_port(start_port=8050, end_port=9000):
+#     for port in range(start_port, end_port + 1):
+#         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+#             if s.connect_ex(("127.0.0.1", port)) != 0:
+#                 return port
+#     raise RuntimeError("No available ports found in the specified range.")
 
-def send_teams_alert(alerts):
-    """Sends cumulative alerts to Microsoft Teams."""
-    message = "\ud83d\udea8 **Service Alert Summary** \ud83d\udea8\n\n"
+# def send_teams_alert(alerts):
+#     """Sends cumulative alerts to Microsoft Teams."""
+#     message = "\ud83d\udea8 **Service Alert Summary** \ud83d\udea8\n\n"
 
-    if alerts.get("stopped"):
-        stopped_services = "\n".join(
-            f"- {entry['Name']} (Startup Type: {entry['StartupType']})" for entry in alerts["stopped"]
-        )
-        message += f"\ud83d\uded1 **Stopped Services:**\n{stopped_services}\n\n"
+#     if alerts.get("stopped"):
+#         stopped_services = "\n".join(
+#             f"- {entry['Name']} (Startup Type: {entry['StartupType']})" for entry in alerts["stopped"]
+#         )
+#         message += f"\ud83d\uded1 **Stopped Services:**\n{stopped_services}\n\n"
 
-    if alerts.get("running"):
-        running_services = "\n".join(
-            f"- {entry['Name']} (Startup Type: {entry['StartupType']})" for entry in alerts["running"]
-        )
-        message += f"\u2705 **Recovered Services:**\n{running_services}\n\n"
+#     if alerts.get("running"):
+#         running_services = "\n".join(
+#             f"- {entry['Name']} (Startup Type: {entry['StartupType']})" for entry in alerts["running"]
+#         )
+#         message += f"\u2705 **Recovered Services:**\n{running_services}\n\n"
 
-    message += "\ud83d\udd0d Please investigate immediately!"
+#     message += "\ud83d\udd0d Please investigate immediately!"
 
-    payload = {"text": message}
-    response = requests.post(TEAMS_WEBHOOK_URL, json=payload)
-    if response.status_code == 200:
-        logger.info("Cumulative alert sent to Teams.")
-    else:
-        logger.error(f"Failed to send alert: {response.text}")
+#     payload = {"text": message}
+#     response = requests.post(TEAMS_WEBHOOK_URL, json=payload)
+#     if response.status_code == 200:
+#         logger.info("Cumulative alert sent to Teams.")
+#     else:
+#         logger.error(f"Failed to send alert: {response.text}")
 
 def fetch_sharepoint_data(site_url, folder_url):
     """Fetches service health data from a single SharePoint."""
