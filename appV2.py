@@ -41,60 +41,99 @@ IST = pytz.timezone("Asia/Kolkata")
 # Dictionary to track last alert times for each service
 last_alert_times = {}
 
+# Projects Mapping to Channels
+projects_map = {
+    "Anvil": ["jk_anvil_prod","jk_techno_prod","arunachal_prod","sikkim_prod","ups_prod","ami_prod_new"],
+    "Apraava": ["apraava_prod","hp_prod","hp_prod_ha","wb_apraava_prod"],
+    "GVPR": ["gvpr_prod"],
+    "Intelli": ["intelli_prod","intelli_dgvcl_prod","intelli_mgvcl_prod","intelli_pvvnl_prod","pkg7_prod"],
+    "MCL": ["mcl_prod"],
+    "NCC": ["ncc_awb_prod", "ncc_nashik_prod"],
+    "Purbanchal": ["aiib_prod"],
+}
+# Helper function to get the alert channel webhook for a project
+def get_alert_webhook(project_name):
+    for key, values in projects_map.items():
+        if project_name in values:
+            return os.getenv(f"{key}_alert_webhook")  # Assumes environment variable names like Anvil_alert_webhook, etc.
+    return None
+
 # Project configurations for SharePoints
 PROJECTS = [
     {
         "project_name": os.getenv("project_1_name"),
         "site_url": os.getenv("base_site_url"),
         "folder_url": os.getenv("project_1_folder_url"),
+        "alert_channel_webhook": get_alert_webhook(os.getenv("project_1_name")),
     },
     {
         "project_name": os.getenv("project_2_name"),
         "site_url": os.getenv("base_site_url"),
         "folder_url": os.getenv("project_2_folder_url"),
+        "alert_channel_webhook": get_alert_webhook(os.getenv("project_2_name")),
     },
     {
         "project_name": os.getenv("project_3_name"),
         "site_url": os.getenv("base_site_url"),
         "folder_url": os.getenv("project_3_folder_url"),
+        "alert_channel_webhook": get_alert_webhook(os.getenv("project_3_name")),
     },
 ]
 
+# Required imports and existing configurations are assumed to remain the same
+
+# Track alert counts for services
+alert_counts = {}
+
+# Function to send Teams alert for individual service status
+def send_teams_service_alert(service, message, webhook_url):
+    payload = {"text": message}
+    response = requests.post(webhook_url, json=payload)
+    if response.status_code == 200:
+        logger.info(f"Alert sent for {service['Name']} to Teams.")
+    else:
+        logger.error(f"Failed to send alert for {service['Name']}: {response.text}")
+
+# Function to handle alerts for automatic startup services
+def handle_automatic_alert(service, service_name, alert_counts, webhook_url, last_updated_time):
+    alert_counts[service_name] += 1
+    if alert_counts[service_name] >= 3:
+        message = (
+            f"\ud83d\uded1 **Critical Alert:** Service '{service_name}' of Automatic Startup Type has been stopped for 3 consecutive intervals.\n"
+            f"Last Updated: {last_updated_time}\n\n"
+            f"\ud83d\udd0d Please investigate immediately!"
+        )
+        send_teams_service_alert(service, message, webhook_url)
+
+# Function to handle alerts for manual startup services
+def handle_manual_alert(service, service_name, webhook_url, last_updated_time):
+    message = (
+        f"\ud83d\uded1 **Notice:** Service '{service_name}' of Manual Startup Type is detected as stopped.\n"
+        f"Last Updated: {last_updated_time}\n\n"
+        f"\ud83d\udd0d Please investigate as needed."
+    )
+    send_teams_service_alert(service, message, webhook_url)
+
+# Function to reset alert counts when a service is running
+def reset_alert_counts(service_name):
+    if service_name in alert_counts:
+        del alert_counts[service_name]
+
+# Function to send recovery notification
+def send_recovery_notification(service_name, webhook_url):
+    message = (
+        f"\u2705 **Recovery Notice:** Service '{service_name}' has resumed running.\n\n"
+        f"\ud83d\udd04 No further action required."
+    )
+    payload = {"text": message}
+    response = requests.post(webhook_url, json=payload)
+    if response.status_code == 200:
+        logger.info(f"Recovery notification sent for {service_name} to Teams.")
+    else:
+        logger.error(f"Failed to send recovery notification for {service_name}: {response.text}")
+
 username = os.getenv("sharepoint_username")
 password = os.getenv("password")
-TEAMS_WEBHOOK_URL = os.getenv("teams_webhook_url")
-
-# def find_open_port(start_port=8050, end_port=9000):
-#     for port in range(start_port, end_port + 1):
-#         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-#             if s.connect_ex(("127.0.0.1", port)) != 0:
-#                 return port
-#     raise RuntimeError("No available ports found in the specified range.")
-
-# def send_teams_alert(alerts):
-#     """Sends cumulative alerts to Microsoft Teams."""
-#     message = "\ud83d\udea8 **Service Alert Summary** \ud83d\udea8\n\n"
-
-#     if alerts.get("stopped"):
-#         stopped_services = "\n".join(
-#             f"- {entry['Name']} (Startup Type: {entry['StartupType']})" for entry in alerts["stopped"]
-#         )
-#         message += f"\ud83d\uded1 **Stopped Services:**\n{stopped_services}\n\n"
-
-#     if alerts.get("running"):
-#         running_services = "\n".join(
-#             f"- {entry['Name']} (Startup Type: {entry['StartupType']})" for entry in alerts["running"]
-#         )
-#         message += f"\u2705 **Recovered Services:**\n{running_services}\n\n"
-
-#     message += "\ud83d\udd0d Please investigate immediately!"
-
-#     payload = {"text": message}
-#     response = requests.post(TEAMS_WEBHOOK_URL, json=payload)
-#     if response.status_code == 200:
-#         logger.info("Cumulative alert sent to Teams.")
-#     else:
-#         logger.error(f"Failed to send alert: {response.text}")
 
 def fetch_sharepoint_data(site_url, folder_url):
     """Fetches service health data from a single SharePoint."""
@@ -144,7 +183,7 @@ app.layout = dbc.Container(
                 width=12,
             )
         ),
-        dcc.Interval(id="interval-component", interval=60000, n_intervals=0),
+        dcc.Interval(id="interval-component", interval=int(os.getenv("dashboard_refresh_interval", 1)) *10000, n_intervals=0),
         dbc.Row(dbc.Col(html.Div(id="service-health-container"), width=12)),
     ],
     fluid=True,
@@ -155,6 +194,8 @@ app.layout = dbc.Container(
     },
 )
 
+
+# Updated update_dashboard callback
 @app.callback(
     Output("service-health-container", "children"),
     Input("interval-component", "n_intervals"),
@@ -163,41 +204,43 @@ def update_dashboard(n):
     global last_alert_times
 
     project_sections = []
-    alerts = {"stopped": [], "running": []}
 
     for project in PROJECTS:
         project_data, last_updated_times = fetch_sharepoint_data(
             project["site_url"], project["folder_url"]
         )
 
-        # Calculate the minimum last updated timestamp for the project
         min_last_update_time = min(
             datetime.strptime(ts[:-4], "%Y-%m-%d %I:%M %p").replace(tzinfo=IST)
             for ts in last_updated_times.values()
         )
         formatted_min_update_time = min_last_update_time.strftime("%Y-%m-%d %I:%M %p %Z")
 
-        # Determine the accordion bar color based on service statuses
         all_services_running = all(
             service["Status"].lower() == "running" for service in project_data
         )
 
-        # Track alerts
         for service in project_data:
             service_name = service["Name"]
-            status = service["Status"]
+            status = service["Status"].lower()
+            startup_type = service["StartupType"].lower()
+            last_updated_time = last_updated_times.get(service["FileName"], "N/A")
 
-            if status.lower() == "stopped":
-                if service_name not in last_alert_times or (
-                    datetime.now() - last_alert_times[service_name]
-                ).total_seconds() > 300:
-                    alerts["stopped"].append(service)
-                    last_alert_times[service_name] = datetime.now()
-            elif status.lower() == "running" and service_name in last_alert_times:
-                alerts["running"].append(service)
-                del last_alert_times[service_name]
+            if status == "stopped":
+                if service_name not in alert_counts:
+                    alert_counts[service_name] = 0
 
-        # Generate service cards for the project
+                if startup_type == "automatic":
+                    handle_automatic_alert(service, service_name, alert_counts, project["alert_channel_webhook"], last_updated_time)
+                elif startup_type == "manual":
+                    handle_manual_alert(service, service_name, project["alert_channel_webhook"], last_updated_time)
+
+                last_alert_times[service_name] = datetime.now()
+            elif status == "running":
+                if service_name in alert_counts:
+                    send_recovery_notification(service_name, project["alert_channel_webhook"])
+                reset_alert_counts(service_name)
+
         service_cards = [
             dbc.Card(
                 dbc.CardBody(
@@ -223,7 +266,6 @@ def update_dashboard(n):
             for service in project_data
         ]
 
-        # Create the project section with updated last updated time and accordion color
         project_section = dbc.AccordionItem(
             [
                 dbc.Row(
@@ -232,9 +274,9 @@ def update_dashboard(n):
                 ),
             ],
             title=f"{project['project_name']} (Last Updated: {formatted_min_update_time})",
-            id=f"accordion-{project['project_name']}",  # Add an ID for uniqueness if needed
+            id=f"accordion-{project['project_name']}",
             style={
-                "backgroundColor": ("#198754" if all_services_running else "#dc3545"),  # Green or red
+                "backgroundColor": ("#198754" if all_services_running else "#dc3545"),
                 "color": "white",
                 "padding": "10px",
                 "borderRadius": "5px",
@@ -243,20 +285,10 @@ def update_dashboard(n):
         )
         project_sections.append(project_section)
 
-    # Send cumulative Teams alerts if there are updates
-    if alerts["stopped"] or alerts["running"]:
-        # send_teams_alert(alerts)
-        pass
-    
-    # Wrap all project sections in an accordion
     return dbc.Accordion(project_sections, always_open=True)
 
 if __name__ == "__main__":
     try:
-        # port = find_open_port()
-        # url = f"http://127.0.0.1:{port}"
-        # logger.info(f"Starting app on {url}")
-        # webbrowser.open(url)
         app.run()
     except Exception as e:
         logger.error(f"Failed to start the app: {e}")
