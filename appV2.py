@@ -55,7 +55,7 @@ projects_map = {
 def get_alert_webhook(project_name):
     for key, values in projects_map.items():
         if project_name in values:
-            return os.getenv(f"{key}_alert_webhook")  # Assumes environment variable names like Anvil_alert_webhook, etc.
+            return os.getenv(f"{key}")  
     return None
 
 # Project configurations for SharePoints
@@ -80,8 +80,6 @@ PROJECTS = [
     },
 ]
 
-# Required imports and existing configurations are assumed to remain the same
-
 # Track alert counts for services
 alert_counts = {}
 
@@ -96,21 +94,25 @@ def send_teams_service_alert(service, message, webhook_url):
 
 # Function to handle alerts for automatic startup services
 def handle_automatic_alert(service, service_name, alert_counts, webhook_url, last_updated_time):
+    if service_name not in alert_counts:
+        alert_counts[service_name] = 0
+
     alert_counts[service_name] += 1
-    if alert_counts[service_name] >= 3:
+
+    if alert_counts[service_name] == 3:  # Send alert on the 3rd consecutive stop
         message = (
-            f"\ud83d\uded1 **Critical Alert:** Service '{service_name}' of Automatic Startup Type has been stopped for 3 consecutive intervals.\n"
+            f"🚨 **Critical Alert:** Service '{service_name}' of Automatic Startup Type has been stopped for 3 consecutive intervals.\n"
             f"Last Updated: {last_updated_time}\n\n"
-            f"\ud83d\udd0d Please investigate immediately!"
+            f"🔍 Please investigate immediately!"
         )
         send_teams_service_alert(service, message, webhook_url)
 
 # Function to handle alerts for manual startup services
 def handle_manual_alert(service, service_name, webhook_url, last_updated_time):
     message = (
-        f"\ud83d\uded1 **Notice:** Service '{service_name}' of Manual Startup Type is detected as stopped.\n"
+        f"🚨 **Notice:** Service '{service_name}' of Manual Startup Type is detected as stopped.\n"
         f"Last Updated: {last_updated_time}\n\n"
-        f"\ud83d\udd0d Please investigate as needed."
+        f"🔍 Please investigate as needed."
     )
     send_teams_service_alert(service, message, webhook_url)
 
@@ -120,10 +122,11 @@ def reset_alert_counts(service_name):
         del alert_counts[service_name]
 
 # Function to send recovery notification
-def send_recovery_notification(service_name, webhook_url):
+def send_recovery_notification(service_name, webhook_url, last_updated_time):
     message = (
-        f"\u2705 **Recovery Notice:** Service '{service_name}' has resumed running.\n\n"
-        f"\ud83d\udd04 No further action required."
+        f"✅ **Recovery Notice:** Service '{service_name}' has resumed running.\n"
+        f"Timestamp: {last_updated_time}\n\n"
+        f"🔄 No further action required."
     )
     payload = {"text": message}
     response = requests.post(webhook_url, json=payload)
@@ -131,6 +134,7 @@ def send_recovery_notification(service_name, webhook_url):
         logger.info(f"Recovery notification sent for {service_name} to Teams.")
     else:
         logger.error(f"Failed to send recovery notification for {service_name}: {response.text}")
+
 
 username = os.getenv("sharepoint_username")
 password = os.getenv("password")
@@ -227,9 +231,6 @@ def update_dashboard(n):
             last_updated_time = last_updated_times.get(service["FileName"], "N/A")
 
             if status == "stopped":
-                if service_name not in alert_counts:
-                    alert_counts[service_name] = 0
-
                 if startup_type == "automatic":
                     handle_automatic_alert(service, service_name, alert_counts, project["alert_channel_webhook"], last_updated_time)
                 elif startup_type == "manual":
@@ -237,9 +238,10 @@ def update_dashboard(n):
 
                 last_alert_times[service_name] = datetime.now()
             elif status == "running":
-                if service_name in alert_counts:
-                    send_recovery_notification(service_name, project["alert_channel_webhook"])
+                if service_name in alert_counts or service_name in last_alert_times:
+                    send_recovery_notification(service_name, project["alert_channel_webhook"], last_updated_time)
                 reset_alert_counts(service_name)
+
 
         service_cards = [
             dbc.Card(
